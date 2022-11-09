@@ -1,14 +1,17 @@
 <template>
   <div>
     <div class="container">
+      <h1 class="main-title">ПОГОДА</h1>
+
       <list-cities 
-        :listCitiesRu="listCitiesRu"
-        @clickCity="clickCity"
+        :listCitiesData="listCitiesData"
+        @updateDataSelectedCity="updateDataSelectedCity"
+        @openCitiesMenu="openCitiesMenu"
       />
 
       <card-city 
-        v-if="cityData.showCard"
-        :cityData="cityData"
+        v-if="dataSelectedCity.showCard"
+        :dataSelectedCity="dataSelectedCity"
       />
     </div>
   </div>
@@ -25,72 +28,88 @@ export default {
   data() {
     return {
       weatherData: [
-        {cityName: {en: "Nizhny Novgorod", ru: "Нижний Новгород"}},
-        {cityName: {en: "Alexin", ru: "Алексин"}},
-        {cityName: {en: "Cheboksary", ru: "Чебоксары"}},
-        {cityName: {en: "Tula", ru: "Тула"}},
-        {cityName: {en: "Moscow", ru: "Москва"}},
+        {cityName: {en: "Nizhny Novgorod", ru: "Нижний Новгород"}, latitude: 56.32,longitude: 44.00},
+        {cityName: {en: "Alexin", ru: "Алексин"}, latitude: 54.30,longitude: 37.04},
+        {cityName: {en: "Cheboksary", ru: "Чебоксары"}, latitude: 56.13,longitude: 47.25},
+        {cityName: {en: "Tula", ru: "Тула"}, latitude: 54.19,longitude: 37.61},
+        {cityName: {en: "Moscow", ru: "Москва"}, latitude: 55.45,longitude: 37.36},
       ],
 
-      cityData: {
+      dataSelectedCity: {
         showCard: false,
         name: "",
         temperature: "",
+      },
+
+      listCitiesData: {
+        menuListCities: Array,
+        showListCitiesElements: {
+          citiesButton: true,
+          citiesList: true
+        }
       }
     };
   },
 
   mounted() {
-    this.setCoordinatesCities()
+    this.setTemperatureCities()
+    this.setMenuListCities()
+    this.setStartShowListCitiesElements()
   },
 
-  computed: {
-    listCitiesRu() {
+  methods: {
+    setMenuListCities() {
       const arrayCitiesNames = []
       
       this.weatherData.forEach(item => {
         arrayCitiesNames.push(item.cityName.ru)
       })
 
-      return arrayCitiesNames
+      this.listCitiesData.menuListCities = arrayCitiesNames
     },
-  },
 
-  methods: {
-    setCoordinatesCities() {
+    setTemperatureCities() {
       this.weatherData.forEach(city => {
-        this.getCoordinatesByFetchCityName(city)
+        this.getTemperatureCity(city)
       })
     },
 
-    getCoordinatesByFetchCityName(cityElement) {
-      fetch(`http://api.openweathermap.org/geo/1.0/direct?q=${cityElement.cityName.en}&appid=3cbbcc71f8eea3440fd826fe5f9d0adb`)
-      .then(response => response.json())
-      .then(response => {
-        cityElement.lat = response[0].lat
-        cityElement.lon = response[0].lon
-      })
-    },
+    getTemperatureCity(city) {
+      let {latitude, longitude} = city
 
-    getTemperatureByCoordinatesCity(city) {
-      let foundCity = this.weatherData.filter(cityItem => cityItem.cityName.ru === city)[0]
-      let {lat, lon} = foundCity
-
-      fetch(`http://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=3cbbcc71f8eea3440fd826fe5f9d0adb`)
+      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m`)
         .then(response => response.json())
         .then(response => {
-          foundCity.temperature = response.main.temp
-          this.cityData = {
-            showCard: true,
-            name: foundCity.cityName.ru,
-            temperature: Math.round(foundCity.temperature - 273.15)
-          }
+          city.temperature = response.hourly.temperature_2m[new Date().getHours() - 1]
         })
     },
 
-    // переименовать clickCity и foundCity придумать что-то с cityData
-    clickCity(cityName) {
-      this.getTemperatureByCoordinatesCity(cityName)
+    updateDataSelectedCity(city) {
+      if(window.innerWidth < 768 ) {
+        this.listCitiesData.showListCitiesElements = {
+          citiesButton: true, 
+          citiesList: false
+        }
+      }
+
+      this.dataSelectedCity.showCard = true
+      this.dataSelectedCity.name = this.weatherData.filter(item => item.cityName.ru === city)[0].cityName.ru
+      this.dataSelectedCity.temperature = this.weatherData.filter(item => item.cityName.ru === city)[0].temperature
+    },
+
+    openCitiesMenu() {
+      this.listCitiesData.showListCitiesElements = {
+        citiesButton: false, 
+        citiesList: true
+      }
+
+      this.dataSelectedCity.showCard = false
+    },
+
+    setStartShowListCitiesElements() {
+      window.innerWidth < 768 ? 
+        this.listCitiesData.showListCitiesElements = {citiesButton: true, citiesList: false} : 
+        this.listCitiesData.showListCitiesElements = {citiesButton: false, citiesList: true}
     }
   }
 };
@@ -103,12 +122,35 @@ export default {
   box-sizing: border-box;
 }
 
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background: #0e0e0e;
+  color: white;
+}
+
 ul {
   list-style-type: none;
 }
 
 .container {
-  margin: 50px auto;
+  margin: 20px auto;
   width: 1200px;
+}
+
+.main-title {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+@media(max-width: 1230px) {
+  .container {
+    width: 768px;
+  }
+}
+
+@media(max-width: 800px) {
+  .container {
+    width: 300px;
+  }
 }
 </style>
